@@ -1,48 +1,54 @@
-import { utils } from "ethers";
+import React, { useState } from 'react';
+import { ethers } from 'ethers';
 
-// Mainnet address of cUSD
-const CUSD_ADDRESS = "0x765DE816845861e75A25fCA122bb6898B8B1282a";
+const CUSDTransfer: React.FC = () => {
+  const [receiverAddress, setReceiverAddress] = useState('');
+  const [transferAmount, setTransferAmount] = useState('');
+  const [status, setStatus] = useState('');
 
-const receiverAddress = "";
+  const handleTransfer = async () => {
+    const cUSDAddress = '0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1'; // cUSD contract address on Alfajores
+    const cUSDDecimals = 18;
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
 
-// DApp to quickly test transfer of cUSD to a specific address using the cUSD contract.
-export default function TransferCUSD() {
-    async function transferCUSD() {
-        if (window.ethereum) {
-            // Get connected accounts, if not connected request connnection.
-            // returns an array of accounts
-            let accounts = await window.ethereum.request({
-                method: "eth_requestAccounts",
-            });
-
-            // The current selected account out of the connected accounts.
-            let userAddress = accounts[0];
-
-            let iface = new utils.Interface([
-                "function transfer(address to, uint256 value)",
-            ]);
-
-            let calldata = iface.encodeFunctionData("transfer", [
-                receiverAddress,
-                utils.parseEther("0.1"), // 10 cUSD - This amount is in wei
-            ]);
-
-            // Send transaction to the injected wallet to be confirmed by the user.
-            let tx = await window.ethereum.request({
-                method: "eth_sendTransaction",
-                params: [
-                    {
-                        from: userAddress,
-                        to: CUSD_ADDRESS, // We need to call the transfer function on the cUSD token contract
-                        data: calldata, // Information about which function to call and what values to pass as parameters
-                    },
-                ],
-            });
-
-            // Wait until tx confirmation and get tx receipt
-            let receipt = await tx.wait();
-        }
+    try {
+      setStatus('Sending transaction...');
+      const contract = new ethers.Contract(
+        cUSDAddress,
+        [
+          'function transfer(address to, uint256 value) public returns (bool)',
+        ],
+        signer
+      );
+      const tx = await contract.transfer(receiverAddress, ethers.utils.parseUnits(transferAmount, cUSDDecimals));
+      setStatus(`Transaction sent: ${tx.hash}`);
+      await tx.wait();
+      setStatus('Transaction successful!');
+    } catch (error) {
+      setStatus(`Error: ${(error as Error).message}`);
     }
+  };
 
-    return <button onClick={transferCUSD}>Transfer cUSD</button>;
-}
+  return (
+    <div>
+      <h2>Transfer cUSD</h2>
+      <input
+        type="text"
+        placeholder="Receiver Address"
+        value={receiverAddress}
+        onChange={(e) => setReceiverAddress(e.target.value)}
+      />
+      <input
+        type="text"
+        placeholder="Amount to Transfer"
+        value={transferAmount}
+        onChange={(e) => setTransferAmount(e.target.value)}
+      />
+      <button onClick={handleTransfer}>Transfer cUSD</button>
+      <p>{status}</p>
+    </div>
+  );
+};
+
+export default CUSDTransfer;
